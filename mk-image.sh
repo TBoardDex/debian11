@@ -1,8 +1,16 @@
 #!/bin/bash -e
 
-TARGET_ROOTFS_DIR=./binary
-ROOTFSIMAGE=linaro-rootfs.img
+# Debian builds use the Xfce desktop only.
+if [ "${FLAVOR:-xfce}" != xfce ]; then
+	echo "Only Debian Xfce is supported" >&2
+	exit 1
+fi
 
+TARGET_ROOTFS_DIR="${TARGET_ROOTFS_DIR:-binary-xfce}"
+ROOTFSIMAGE="${ROOTFSIMAGE:-tboard-debian11-xfce-rootfs.img}"
+export ARCH="${ARCH:-${RK_DEBIAN_ARCH:-arm64}}"
+
+./check-resources.sh
 
 echo Making rootfs!
 

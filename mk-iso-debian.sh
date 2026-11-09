@@ -39,7 +39,7 @@ make modules_install INSTALL_MOD_PATH=$INITRD --quiet
 
 echo "pack initrd.gz"
 cd $INITRD
-cp $SDK_PATH/debian/overlay-debug/usr/local/bin/io $INITRD/bin/
+cp $DIR/overlay-debug/usr/local/bin/io $INITRD/bin/
 find . | cpio --quiet -o -H newc --owner 0:0 | gzip > $DEBIAN_DIR/install.a64/initrd.gz
 cd $SDK_PATH
 rm -r $INITRD
@@ -87,7 +87,7 @@ rm -rf tmp
 # ------------------rkwifibt------------
 echo -e "\033[36m Install rkwifibt.................... \033[0m"
 mkdir -p $DEBIAN_DIR/pool/main/rockchip/
-cp $SDK_PATH/debian/packages/arm64/rkwifibt/*.deb $DEBIAN_DIR/pool/main/rockchip/
+cp $DIR/packages/arm64/rkwifibt/*.deb $DEBIAN_DIR/pool/main/rockchip/
 
 echo "update Release info"
 cd $DEBIAN_DIR/

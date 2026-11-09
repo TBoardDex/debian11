@@ -1,123 +1,76 @@
-## Introduction
+# Debian 11 (Bullseye) Rootfs — TBoard (RK3588S)
 
-A set of shell scripts that will build GNU/Linux distribution rootfs image
-for rockchip platform.
+为 TBoard R5A (RK3588S) 构建基于 linaro 底包的 Debian 11 (Bullseye) ARM64 根文件系统，
+仅提供 Xfce 桌面版，不再支持 Debian Server 构建。
+板载 AIC8800 SDIO WiFi；UART H4 蓝牙为实验性接入，尚未上板验证，详见
+[蓝牙说明](bsp/wifibt/README.bluetooth.md)。
 
-## Default login accounts
+## 构建
 
-SDK image post-processing installs `root/root` (UID 0) and
-`tboard/tboard` (ordinary user, no sudo/admin group). The Linaro base user is
-renamed to `tboard`, retaining its UID and home files. LightDM autologin is
-disabled; log in to the desktop as `tboard`. Passwords do not expire on first
-login. The serial console requires a username and password instead of opening
-an unauthenticated root shell. Service accounts remain installed. Use `su -`
-with password `root` for administration; root password login over SSH still
-follows the SSH policy.
-Run `mk-image.sh` or the SDK Debian build to apply the shared account hook;
-existing images are not modified by these source changes.
+推荐从 SDK 根目录使用统一入口：
 
-## Available Distro
-
-* Debian 11 (Bullseye-X11 and Wayland)~~
-
-```
-sudo apt-get install binfmt-support qemu-user-static
-sudo dpkg -i ubuntu-build-service/packages/*
-sudo apt-get install -f
+```bash
+./build.sh tboard-r5a_rk3588s_debian_xfce_defconfig
+./build.sh all
 ```
 
-## Usage for 32bit Debian 11 (Bullseye-32)
+已有 bootloader 和内核产物时，可单独重建 rootfs 并更新固件目录：
 
-### Building debian system from linaro
-
-Building a base debian system by ubuntu-build-service from linaro.
-
-```
-	RELEASE=bullseye TARGET=base ARCH=armhf ./mk-base-debian.sh
+```bash
+./build.sh debian
+./build.sh firmware
 ```
 
-Building a desktop debian system by ubuntu-build-service from linaro.
+SDK 入口使用 `VERSION=debug`，包含调试 overlay 和 glmark2。
+rootfs 后处理会安装当前内核模块，需先完成相应内核的编译。
+烧录时应配套更新 boot 和 rootfs，避免旧 `.ko` 与新内核不匹配。
 
-```
-	RELEASE=bullseye TARGET=desktop ARCH=armhf ./mk-base-debian.sh
-```
+也可直接调用本目录脚本。先在 SDK 根目录选择上述 Debian defconfig 并编译内核，
+再进入 `debian11/` 执行：
 
-### Building overlay with rockchip audio/video hardware accelerated
+```bash
+# 1. 生成底包（已有 linaro-bullseye-alip-*.tar.gz 时可跳过）
+RELEASE=bullseye TARGET=desktop ARCH=arm64 ./mk-base-debian.sh
 
-- Building with overlay with rockchip debian rootfs:
+# 2. 解包底包、应用 overlay 并安装软件，生成 binary-xfce/
+ARCH=arm64 ./mk-rootfs-bullseye.sh
+# 如需与 SDK 入口一致：VERSION=debug ARCH=arm64 ./mk-rootfs-bullseye.sh
 
-```
-	RELEASE=bullseye ARCH=armhf ./mk-rootfs.sh
-```
-
-- Building with overlay with rockchip debug debian rootfs:
-
-```
-	VERSION=debug ARCH=armhf ./mk-rootfs-bullseye.sh
-```
-
-### Creating roofs image
-
-Creating the ext4 image(linaro-rootfs.img):
-
-```
-	./mk-image.sh
+# 3. 执行 Debian 和 SDK 后处理，直接生成 ext4 镜像
+./mk-image.sh
 ```
 
----
+直接调用 `mk-rootfs-bullseye.sh` 默认使用 `VERSION=release`，每次会清空并重建
+`binary-xfce/`。`mk-image.sh` 默认打包该目录，不再生成 `linaro-rootfs.img` 中间镜像。
 
-## Usage for 64bit Debian 11 (Bullseye-64)
+## 资源校验
 
-### Building debian system from linaro
+只读资源校验（脚本/固件校验和、核心包架构）：
 
-Building a base debian system by ubuntu-build-service from linaro.
-
-```
-	RELEASE=bullseye TARGET=desktop ARCH=arm64 ./mk-base-debian.sh
-```
-
-### Building overlay with rockchip audio/video hardware accelerated
-
-- Building the rk-debian rootfs
-
-```
-	RELEASE=bullseye ARCH=arm64 ./mk-rootfs.sh
+```bash
+ARCH=arm64 ./debian11/check-resources.sh   # SDK 根目录执行
 ```
 
-- Building the rk-debain rootfs with debug
+更新 bsp/ 或 overlay-firmware/ 内容后需刷新校验和：
 
+```bash
+(cd debian11 && find bsp overlay-firmware/lib/firmware/aic8800 -type f \
+    ! -path bsp/SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum > bsp/SHA256SUMS)
 ```
-	VERSION=debug ARCH=arm64 ./mk-rootfs-bullseye.sh
-```
 
-### Creating roofs image
+## 产物
 
-Creating the ext4 image(linaro-rootfs.img):
+| 文件 | 说明 |
+| --- | --- |
+| binary-xfce/ | rootfs 工作目录 |
+| tboard-debian11-xfce-rootfs.img | 最终 ext4 rootfs 镜像（烧写用） |
+| ../output/debian-bullseye-xfce/images/rootfs.ext4 | SDK 构建生成的镜像链接 |
+| ../output/firmware/rootfs.img | 执行 SDK rootfs 构建后生成的固件镜像链接 |
+| linaro-bullseye-alip-*.tar.gz | linaro 底包，保留可避免重新下载 |
 
-```
-	./mk-image.sh
-```
----
+## 默认账号
 
-## Cross Compile for ARM Debian
-
-[Docker + Multiarch](http://opensource.rock-chips.com/wiki_Cross_Compile#Docker)
-
-## Package Code Base
-
-Please apply [those patches](https://github.com/rockchip-linux/rk-rootfs-build/tree/master/packages-patches) to release code base before rebuilding!
-
-## License information
-
-Please see [debian license](https://www.debian.org/legal/licenses/)
-
-## FAQ
-
-- noexec or nodev issue
-noexec or nodev issue /usr/share/debootstrap/functions: line 1450:
-../rootfs/ubuntu-build-service/bullseye-desktop-arm64/chroot/test-dev-null:
-Permission denied E: Cannot install into target
-...
-mounted with noexec or nodev
-
-Solution: mount -o remount,exec,dev xxx (xxx is the mount place), then rebuild it.
+- root / root
+- tboard / tboard（普通用户，使用自己的密码执行 sudo）
+- SSH 密码登录已开启（含 root）；SSH 主机密钥在启动服务前按需生成。
+- 串口控制台和 LightDM 桌面登录均需账号密码，不启用自动登录。
