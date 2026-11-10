@@ -2,7 +2,8 @@
 
 为 TBoard R5A (RK3588S) 构建基于 linaro 底包的 Debian 11 (Bullseye) ARM64 根文件系统，
 仅提供 Xfce 桌面版，不再支持 Debian Server 构建。
-板载 AIC8800 SDIO WiFi；UART H4 蓝牙为实验性接入，尚未上板验证，详见
+板载 AIC8800 SDIO WiFi；UART H4 蓝牙已在 Debian 11 实板验证初始化、控制器上电、设备扫描
+及手机、蓝牙键盘连接，并观察到 AVRCP/HID 输入设备注册
 [蓝牙说明](bsp/wifibt/README.bluetooth.md)。
 
 ## 构建

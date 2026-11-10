@@ -4,7 +4,7 @@ This directory is an independent snapshot used by this distribution's SDK
 post-rootfs hooks. No symlinks to another distro or external/ are required.
 
 - rkscript/: system scripts, init services and udev rules from SDK rkscript.
-- wifibt/: vendor initialization/configuration scripts; current support is AIC8800 SDIO Wi-Fi and experimental UART H4 Bluetooth.
+- wifibt/: vendor initialization/configuration scripts for AIC8800 SDIO Wi-Fi and UART H4 Bluetooth. Debian 11 board tests confirm initialization, controller power-on, device discovery, a phone connection with AVRCP input registration, and an AULA-F75 keyboard connection with HID registration. Pairing state, actual key input, audio playback, and reconnection still require verification.
 - ../overlay-firmware/lib/firmware/aic8800/: flat AIC8800 firmware layout expected
   by the current in-kernel driver. Source revision and notices are retained there.
 

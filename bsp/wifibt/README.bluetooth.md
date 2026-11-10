@@ -1,8 +1,45 @@
-# AIC8800 UART Bluetooth：TBoard 试验性接入
+# AIC8800 UART Bluetooth：TBoard 接入与验证
 
 Ubuntu 20.04/22.04、Debian Bullseye 的构建流程会安装本目录的初始化工具、配置和
-`aic8800-bluetooth.service`。当前只完成源码接入与模拟协议测试，**未上板验证**。
-Buildroot 的资源及蓝牙启动流程没有改动。
+`aic8800-bluetooth.service`。Debian 11 已完成实板初始化、控制器上电、设备扫描及手机、
+蓝牙键盘连接验证，并观察到 AVRCP/HID 输入设备注册
+
+## Debian 实板验证记录
+
+2026-11-10，根据板端命令输出记录：
+
+| 项目 | 环境或结果 |
+| --- | --- |
+| 板卡与系统 | TBoard R5A (RK3588S)，Debian 11 Bullseye ARM64 |
+| rootfs 构建标识 | `RK_BUILD_INFO`: 2026-11-09 21:46:03 CST |
+| 内核 | `5.10.226 #7`，构建于 2026-11-09 20:35:40 CST |
+| 初始化服务 | `aic8800-bluetooth.service` 与 `bluetooth.service` 均为 `active (running)` |
+| UART/HCI 初始化 | `/dev/ttyS9`、1500000 baud、RTS/CTS；HCI Reset、版本和地址读取成功 |
+| 控制器版本 | `0b14000b60001400` |
+| PTA 配置 | `0xfc72` 命令完成，随后成功注册 `hci0`；共存效果仍待测试 |
+| BlueZ | 能列出控制器，`Powered: yes`、`Pairable: yes` |
+| 设备扫描 | `scan on` / `scan off` 成功，发现周边设备并收到 RSSI、广播数据更新；已观察到 BLE 广播，BR/EDR 单独扫描仍待验证 |
+| 手机连接 |  主动连接板端，BlueZ 报告 `Connected: yes` |
+| AVRCP | 内核注册手机对应的 `(AVRCP)` 输入设备；实际媒体控制按键仍待验证 |
+| 蓝牙键盘连接 | BlueZ 报告 `Connected: yes`、`ServicesResolved: yes` |
+| HID 注册 | 内核通过 UHID / `hid-generic` 注册键盘、Consumer Control、System Control 和 Mouse 输入接口；实际按键仍待验证，Mouse 接口不代表已测试独立鼠标 |
+| 配对状态 | 尚未提供 `info` 的 `Paired` 字段，待确认 |
+| 音频或实际按键输入 | 待验证；输入设备注册不能证明 A2DP 播放或实际按键功能正常 |
+| 重启重连、Wi-Fi 共存、休眠恢复 | 待验证 |
+
+镜像未提供 `rfkill` 命令，不影响上述初始化结果。可选安装 `rfkill` 用于诊断，
+也可只读查看内核状态：
+
+```bash
+for entry in /sys/class/rfkill/rfkill*; do
+    [ -d "$entry" ] || continue
+    echo "=== $entry ==="
+    cat "$entry/name" "$entry/type" "$entry/soft" "$entry/hard"
+done
+```
+
+其中 `soft` 和 `hard` 的 `0` 表示未阻塞，`1` 表示阻塞。
+BlueZ 列出的音频等 UUID 只代表已注册服务，不能作为音频播放成功的依据。
 
 ## 工作顺序
 
@@ -136,8 +173,8 @@ ls -l /dev/ttyS9
 - UART HCI 注册失败：核对内核 HCIUART/H4 配置和 UART 是否被占用。
 
 本实现移植厂商默认的“不重新配置 RF 寄存器”路径，没有移植 Android 音频栈、
-PCM/I2S SCO、厂商低功耗/深度休眠及特殊 RF 测试模式。基础扫描、配对、连接以及
-休眠恢复都仍需实测；内置蓝牙音频和低功耗不能据此声称已适配完成。
+PCM/I2S SCO、厂商低功耗/深度休眠及特殊 RF 测试模式。基础扫描、手机与蓝牙键盘连接已验证，
+配对状态、实际业务及休眠恢复仍需实测；内置蓝牙音频和低功耗不能据此声称已适配完成。
 
 ## 来源和本机检查
 
@@ -150,8 +187,7 @@ PCM/I2S SCO、厂商低功耗/深度休眠及特殊 RF 测试模式。基础扫�
 在 SDK 根目录运行只读/模拟测试，不需要硬件：
 
 ```bash
-# 把 ubuntu 换成 debian 可检查另一份独立资源
-python3 -B ubuntu/bsp/wifibt/tests/test_aic8800_bt.py
-ubuntu/bsp/wifibt/scripts/aic8800-bt-attach --check-config \
-    --config ubuntu/bsp/wifibt/aic8800-bluetooth.conf
+python3 -B debian11/bsp/wifibt/tests/test_aic8800_bt.py
+debian11/bsp/wifibt/scripts/aic8800-bt-attach --check-config \
+    --config debian11/bsp/wifibt/aic8800-bluetooth.conf
 ```
